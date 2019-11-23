@@ -11,10 +11,17 @@ use Validator;
 class ActivityController extends BaseController
 {
     //
-    public function index()
+    public function index(Request $request)
     {
-        $Activitys = Activity::all();
+        if( count($request->all()) ){
+            $Activitys = Activity::where('owner', $request->input("owner") )
+                                 ->Where('startDate','<=', $request->input("startDate"))
+                                 ->Where('endDate','>=', $request->input("endDate"))
+                                 ->get();
 
+            return $this->sendResponse($Activitys->toArray(), 'Some Activity retrieved successfully.');               
+        }
+        $Activitys = Activity::all();
         return $this->sendResponse($Activitys->toArray(), 'Activitys retrieved successfully.');
     }
 
