@@ -61,22 +61,25 @@ class ActivityController extends BaseController
         }
 
         $Activitys = Activity::where('owner', $request->input("owner") )
-                             ->where('startDate','<=', $request->input("startDate"))
-                             ->where('endDate','>=', $request->input("endDate"))
+                            ->where(function ($q) use($request) {
+                                $q->where(function ($q) use($request) {
+                                    $q->Where('startDate','<=', $request->input("startDate"))
+                                    ->Where('endDate','>=', $request->input("startDate"));
+                                })
+                                ->orwhere(function ($q) use($request) {
+                                    $q->Where('endDate','>=', $request->input("endDate"))
+                                    ->Where('startDate','<=', $request->input("endDate"));
+                                });
+                            })
                              ->get();
 
         if( count($Activitys->toArray()) != 0){
             return $this->sendError('Validation Error.', "Two Activities on the same time.");       
         }
 
-        error_log($Activitys);
+        $Activity = Activity::create($input);
 
-        //$Activity = Activity::create($input);
-        //$id = Auth::id();
-
-        //$Activity->owner=$id;
-
-        return $this->sendResponse($Activitys->toArray(), 'Activity created successfully.');
+        return $this->sendResponse($Activity->toArray(), 'Activity created successfully.');
     }
 
     /**
@@ -133,7 +136,37 @@ class ActivityController extends BaseController
             return $this->sendError('Validation Error.', $validator->errors());       
         }
 
-        $Activity->nombre = $input['nombre'];
+        if( $this->isWeekend($request->input("startDate")) || 
+            $this->isWeekend($request->input("deadline")) ||
+            $this->isWeekend($request->input("endDate")) ){
+            
+            return $this->sendError('Validation Error.', "Activities must not allow during weekends.");
+        }
+
+        $Activitys = Activity::where('owner', $request->input("owner") )
+                            ->where(function ($q) use($request) {
+                                $q->where(function ($q) use($request) {
+                                    $q->Where('startDate','<=', $request->input("startDate"))
+                                      ->Where('endDate','>=', $request->input("startDate"));
+                                })
+                                ->orwhere(function ($q) use($request) {
+                                    $q->Where('endDate','>=', $request->input("endDate"))
+                                      ->Where('startDate','<=', $request->input("endDate"));
+                                });
+                            })
+                             ->Where('id','!=', $Activity->id)
+                             ->get();
+
+        if( count($Activitys->toArray()) != 0){
+            return $this->sendError('Validation Error.', "Two Activities on the same time.");       
+        }
+
+        $Activity->startDate = $input['startDate'];
+        $Activity->deadline = $input['deadline'];
+        $Activity->endDate = $input['endDate'];
+        $Activity->title = $input['title'];
+        $Activity->description = $input['description'];
+        $Activity->status = $input['status'];
         $Activity->save();
 
         return $this->sendResponse($Activity->toArray(), 'Activity updated successfully.');
